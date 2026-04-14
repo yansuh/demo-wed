@@ -4,7 +4,9 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3000;
+
+// ĐÃ SỬA: Sử dụng cổng động của Render cấp, nếu chạy offline máy tính thì dùng cổng 3000
+const PORT = process.env.PORT || 3000; 
 
 app.use(cors());
 app.use(express.json());
@@ -180,4 +182,5 @@ app.put('/api/requests/:id', (req, res) => {
     } else res.status(404).json({ success: false });
 });
 
-app.listen(PORT, () => console.log(`Server chạy tại http://localhost:${PORT}`));
+// ĐÃ SỬA: Đổi câu thông báo để hợp lý hơn khi đưa lên mạng
+app.listen(PORT, () => console.log(`Server đang chạy tại port ${PORT}`));
