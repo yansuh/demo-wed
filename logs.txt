@@ -1,0 +1,8 @@
+[
+  {
+    "id": 1776163867619,
+    "timestamp": "2026-04-14 10:51",
+    "action": "Khởi tạo hệ thống",
+    "user": "System"
+  }
+]

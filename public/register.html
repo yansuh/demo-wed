@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký · Hệ thống Quản lý Học vụ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f2b3d 0%, #1b4a6e 100%);
+            background-attachment: fixed;
+            position: relative;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.08"><path fill="white" d="M20,30 L30,20 L40,30 L30,40 Z M60,70 L70,60 L80,70 L70,80 Z M80,20 L90,15 L85,25 Z M10,80 L20,75 L15,85 Z"/><circle cx="50" cy="50" r="3"/><circle cx="85" cy="85" r="2"/><circle cx="15" cy="15" r="2"/></svg>');
+            background-repeat: repeat;
+            background-size: 32px;
+            pointer-events: none;
+        }
+        .card {
+            backdrop-filter: blur(2px);
+            background: rgba(255, 255, 255, 0.98);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 25px 40px -12px rgba(0,0,0,0.25);
+        }
+        input, select {
+            transition: all 0.2s;
+        }
+        input:focus, select:focus {
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+            border-color: #3b82f6;
+            outline: none;
+        }
+        .btn-primary {
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(to right, #1d4ed8, #1e3a8a);
+            transform: scale(1.01);
+            box-shadow: 0 10px 20px -5px rgba(37,99,235,0.4);
+        }
+        .requirement {
+            font-size: 11px;
+            transition: all 0.1s;
+        }
+        .requirement.valid { color: #10b981; }
+        .requirement.invalid { color: #9ca3af; }
+        .requirement i { width: 14px; margin-right: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 font-sans">
+    <div class="w-full max-w-md card rounded-2xl shadow-2xl p-8 relative z-10">
+        <div class="text-center mb-6">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                <i class="fas fa-user-plus text-white text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold mt-4 text-gray-800">Đăng ký tài khoản</h2>
+            <p class="text-gray-500 text-sm">Tạo tài khoản mới trong hệ thống</p>
+        </div>
+        <form id="registerForm">
+            <div class="mb-3">
+                <input type="text" id="fullName" placeholder="Họ và tên" class="w-full border border-gray-300 rounded-xl p-3" required>
+            </div>
+            <div class="mb-3">
+                <input type="text" id="username" placeholder="Tên đăng nhập" class="w-full border border-gray-300 rounded-xl p-3" required>
+            </div>
+            <div class="mb-3">
+                <select id="role" class="w-full border border-gray-300 rounded-xl p-3 bg-white">
+                    <option value="lecturer">Giảng viên</option>
+                    <option value="faculty">Khoa / Bộ môn</option>
+                </select>
+            </div>
+
+            <!-- Giảng viên fields -->
+            <div id="lecturerFields" class="hidden space-y-3">
+                <div>
+                    <input type="text" id="lecturerCode" placeholder="Mã giảng viên" class="w-full border border-gray-300 rounded-xl p-3">
+                </div>
+                <div>
+                    <input type="date" id="birthDate" class="w-full border border-gray-300 rounded-xl p-3">
+                </div>
+                <div>
+                    <select id="facultyDept" class="w-full border border-gray-300 rounded-xl p-3 bg-white">
+                        <option value="">-- Chọn khoa --</option>
+                        <option value="Công nghệ thông tin">Công nghệ thông tin</option>
+                        <option value="Kinh tế">Kinh tế</option>
+                        <option value="Khoa học sự sống">Khoa học sự sống</option>
+                        <option value="Điện - điện tử">Điện - điện tử</option>
+                        <option value="Ngôn ngữ">Ngôn ngữ</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Khoa fields -->
+            <div id="facultyGroup" class="mb-3 hidden">
+                <input type="text" id="facultyName" placeholder="Tên khoa (VD: Công nghệ thông tin)" class="w-full border border-gray-300 rounded-xl p-3">
+            </div>
+
+            <div class="mb-3">
+                <input type="password" id="password" placeholder="Mật khẩu" class="w-full border border-gray-300 rounded-xl p-3" required>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                    <span id="reqLength" class="requirement invalid"><i class="fas fa-circle"></i> ≥8 ký tự</span>
+                    <span id="reqUpper" class="requirement invalid"><i class="fas fa-circle"></i> Hoa</span>
+                    <span id="reqLower" class="requirement invalid"><i class="fas fa-circle"></i> Thường</span>
+                    <span id="reqDigit" class="requirement invalid"><i class="fas fa-circle"></i> Số</span>
+                    <span id="reqSpecial" class="requirement invalid"><i class="fas fa-circle"></i> Ký tự đặc biệt</span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <input type="password" id="confirm" placeholder="Xác nhận mật khẩu" class="w-full border border-gray-300 rounded-xl p-3" required>
+            </div>
+            <div id="errorMsg" class="text-red-500 text-sm mb-3 hidden"></div>
+            <button type="submit" class="btn-primary w-full text-white py-3 rounded-xl font-semibold shadow-md">Đăng ký</button>
+        </form>
+        <div class="text-center mt-5">
+            <a href="login.html" class="text-blue-600 hover:text-blue-800 text-sm font-medium">← Quay lại đăng nhập</a>
+        </div>
+        <div class="mt-6 pt-4 border-t border-gray-100 text-center text-xs text-gray-400">
+            © 2025 Hệ thống Quản lý Học vụ
+        </div>
+    </div>
+
+    <script>
+        // ========== TOGGLE FIELDS ==========
+        const roleSelect = document.getElementById('role');
+        const lecturerFields = document.getElementById('lecturerFields');
+        const facultyGroup = document.getElementById('facultyGroup');
+        function toggleFields() {
+            const isLecturer = roleSelect.value === 'lecturer';
+            lecturerFields.classList.toggle('hidden', !isLecturer);
+            facultyGroup.classList.toggle('hidden', isLecturer);
+        }
+        roleSelect.addEventListener('change', toggleFields);
+        toggleFields();
+
+        // ========== PASSWORD STRENGTH ==========
+        const passwordInput = document.getElementById('password');
+        const reqLength = document.getElementById('reqLength');
+        const reqUpper = document.getElementById('reqUpper');
+        const reqLower = document.getElementById('reqLower');
+        const reqDigit = document.getElementById('reqDigit');
+        const reqSpecial = document.getElementById('reqSpecial');
+
+        function checkPassword(password) {
+            return {
+                length: password.length >= 8,
+                upper: /[A-Z]/.test(password),
+                lower: /[a-z]/.test(password),
+                digit: /[0-9]/.test(password),
+                special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)
+            };
+        }
+        function updatePasswordUI() {
+            const pwd = passwordInput.value;
+            const checks = checkPassword(pwd);
+            const map = { length: reqLength, upper: reqUpper, lower: reqLower, digit: reqDigit, special: reqSpecial };
+            let allValid = true;
+            for (const [key, el] of Object.entries(map)) {
+                if (checks[key]) {
+                    el.classList.remove('invalid');
+                    el.classList.add('valid');
+                    el.innerHTML = '<i class="fas fa-check-circle"></i> ' + el.innerText.substring(1);
+                } else {
+                    el.classList.remove('valid');
+                    el.classList.add('invalid');
+                    el.innerHTML = '<i class="fas fa-circle"></i> ' + el.innerText.substring(1);
+                    allValid = false;
+                }
+            }
+            return allValid;
+        }
+        passwordInput.addEventListener('input', updatePasswordUI);
+
+        // ========== SUBMIT ==========
+        document.getElementById('registerForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('fullName').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const role = document.getElementById('role').value;
+            const password = passwordInput.value;
+            const confirm = document.getElementById('confirm').value;
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.classList.add('hidden');
+
+            if (!fullName || !username || !password) {
+                errorDiv.textContent = 'Vui lòng điền đầy đủ họ tên, tên đăng nhập và mật khẩu.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            if (password !== confirm) {
+                errorDiv.textContent = 'Mật khẩu xác nhận không khớp.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            if (!updatePasswordUI()) {
+                errorDiv.textContent = 'Mật khẩu chưa đáp ứng đủ các yêu cầu bên dưới.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            let newUser = { username, password, fullName, role };
+
+            if (role === 'lecturer') {
+                const lecturerCode = document.getElementById('lecturerCode').value.trim();
+                const birthDate = document.getElementById('birthDate').value;
+                const facultyDept = document.getElementById('facultyDept').value;
+                if (!lecturerCode) { errorDiv.textContent = 'Nhập mã giảng viên.'; errorDiv.classList.remove('hidden'); return; }
+                if (!birthDate) { errorDiv.textContent = 'Chọn ngày sinh.'; errorDiv.classList.remove('hidden'); return; }
+                if (!facultyDept) { errorDiv.textContent = 'Chọn khoa trực thuộc.'; errorDiv.classList.remove('hidden'); return; }
+                newUser.lecturerCode = lecturerCode;
+                newUser.birthDate = birthDate;
+                newUser.facultyDept = facultyDept;
+            } else {
+                const facultyName = document.getElementById('facultyName').value.trim();
+                if (!facultyName) { errorDiv.textContent = 'Nhập tên khoa.'; errorDiv.classList.remove('hidden'); return; }
+                newUser.facultyName = facultyName;
+            }
+
+            let users = JSON.parse(localStorage.getItem('users')) || [];
+            if (users.find(u => u.username === username)) {
+                errorDiv.textContent = 'Tên đăng nhập đã tồn tại.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            let nextIds = JSON.parse(localStorage.getItem('nextIds')) || { userId: 1 };
+            newUser.id = nextIds.userId++;
+            users.push(newUser);
+            localStorage.setItem('users', JSON.stringify(users));
+            localStorage.setItem('nextIds', JSON.stringify(nextIds));
+
+            let logs = JSON.parse(localStorage.getItem('logs')) || [];
+            logs.unshift({
+                id: Date.now(),
+                timestamp: new Date().toLocaleString('vi-VN'),
+                user: username,
+                action: `Đăng ký tài khoản mới: ${username} (${role})`
+            });
+            localStorage.setItem('logs', JSON.stringify(logs));
+
+            alert('Đăng ký thành công! Vui lòng đăng nhập.');
+            window.location.href = 'login.html';
+        });
+    </script>
+</body>
+</html>

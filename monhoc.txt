@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "code": "CS101",
+    "name": "Lập trình Web nâng cao",
+    "faculty": "Công nghệ thông tin",
+    "credits": 3,
+    "lecturer": "TS. Nguyễn Văn A",
+    "description": "",
+    "status": "active"
+  },
+  {
+    "id": 2,
+    "code": "CS102",
+    "name": "Cơ sở dữ liệu",
+    "faculty": "Công nghệ thông tin",
+    "credits": 4,
+    "lecturer": "ThS. Trần Thị B",
+    "description": "",
+    "status": "active"
+  },
+  {
+    "id": 3,
+    "code": "EC101",
+    "name": "Kinh tế vi mô",
+    "faculty": "Kinh tế",
+    "credits": 3,
+    "lecturer": "PGS. Lê Văn C",
+    "description": "",
+    "status": "active"
+  },
+  {
+    "id": 4,
+    "code": "ENG101",
+    "name": "Tiếng Anh chuyên ngành",
+    "faculty": "Ngoại ngữ",
+    "credits": 2,
+    "lecturer": "Cô Sarah Johnson",
+    "description": "",
+    "status": "active"
+  },
+  {
+    "id": 5,
+    "code": "CS301",
+    "name": "Trí tuệ nhân tạo",
+    "faculty": "Công nghệ thông tin",
+    "credits": 3,
+    "lecturer": "GS. Phạm Minh D",
+    "description": "",
+    "status": "active"
+  }
+]

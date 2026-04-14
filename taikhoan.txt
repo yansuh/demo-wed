@@ -1,0 +1,9 @@
+
+  {
+    "id": 1,
+    "username": "admin",
+    "password": "Admin1234@",
+    "fullName": "Quản trị hệ thống",
+    "role": "admin"
+  }
+  

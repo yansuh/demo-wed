@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Dashboard · Quản lý Học vụ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom style bổ sung cho giao diện chuyên nghiệp */
+        body {
+            background: #f0f4f8;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .card-hover {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+        }
+        .scrollable-table {
+            overflow-x: auto;
+            border-radius: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 12px 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .badge-role {
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        button, .btn-like {
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        input, select, textarea {
+            transition: all 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+        }
+        /* Tùy chỉnh scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-md p-5 mb-8 flex flex-wrap justify-between items-center border border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
+                    <i class="fas fa-graduation-cap text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Quản lý học vụ</h1>
+                    <p class="text-xs text-gray-500">Hệ thống quản lý môn học & tài khoản</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <div id="userFullname" class="text-sm font-semibold text-gray-700"></div>
+                    <span id="userRoleBadge" class="text-xs px-3 py-1 rounded-full font-medium"></span>
+                </div>
+                <button id="logoutBtn" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-xl text-sm transition flex items-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i> Thoát
+                </button>
+            </div>
+        </div>
+
+        <!-- Nội dung chính sẽ được render theo role -->
+        <div id="roleContent"></div>
+    </div>
+
+    <script>
+        // ==================== KHỞI TẠO DỮ LIỆU MẶC ĐỊNH ====================
+        if (!localStorage.getItem('users')) {
+            const defaultUsers = [
+                { id: 1, username: 'admin', password: '123', fullName: 'Quản trị viên', role: 'admin' },
+                { id: 2, username: 'training', password: '123', fullName: 'Phòng đào tạo', role: 'training' },
+                { id: 3, username: 'gv1', password: '123', fullName: 'Nguyễn Văn A', role: 'lecturer', lecturerCode: 'GV001', birthDate: '1985-05-10', facultyDept: 'Công nghệ thông tin' },
+                { id: 4, username: 'khoa_cntt', password: '123', fullName: 'Khoa CNTT', role: 'faculty', facultyName: 'Công nghệ thông tin' }
+            ];
+            localStorage.setItem('users', JSON.stringify(defaultUsers));
+        }
+        if (!localStorage.getItem('subjects')) {
+            const defaultSubjects = [
+                { id: 1, code: 'CS101', name: 'Lập trình cơ bản', faculty: 'Công nghệ thông tin', credits: 3, lecturer: 'Nguyễn Văn A', description: 'Nhập môn lập trình với Python' },
+                { id: 2, code: 'CS102', name: 'Cấu trúc dữ liệu', faculty: 'Công nghệ thông tin', credits: 4, lecturer: 'Trần Thị B', description: 'Cấu trúc dữ liệu và giải thuật' },
+                { id: 3, code: 'ECO101', name: 'Kinh tế vi mô', faculty: 'Kinh tế', credits: 3, lecturer: 'Lê Văn C', description: 'Nguyên lý kinh tế học' }
+            ];
+            localStorage.setItem('subjects', JSON.stringify(defaultSubjects));
+        }
+        if (!localStorage.getItem('logs')) localStorage.setItem('logs', JSON.stringify([]));
+        if (!localStorage.getItem('requests')) localStorage.setItem('requests', JSON.stringify([]));
+        if (!localStorage.getItem('nextIds')) {
+            localStorage.setItem('nextIds', JSON.stringify({ userId: 5, subjectId: 4, requestId: 1 }));
+        }
+
+        // ==================== HÀM TIỆN ÍCH ====================
+        function getUsers() { return JSON.parse(localStorage.getItem('users')) || []; }
+        function saveUsers(users) { localStorage.setItem('users', JSON.stringify(users)); }
+        function getSubjects() { return JSON.parse(localStorage.getItem('subjects')) || []; }
+        function saveSubjects(subjects) { localStorage.setItem('subjects', JSON.stringify(subjects)); }
+        function getLogs() { return JSON.parse(localStorage.getItem('logs')) || []; }
+        function addLog(action, user) {
+            let logs = getLogs();
+            logs.unshift({ id: Date.now(), timestamp: new Date().toLocaleString('vi-VN'), user: user || 'system', action });
+            if (logs.length > 50) logs.pop();
+            localStorage.setItem('logs', JSON.stringify(logs));
+        }
+        function getRequests() { return JSON.parse(localStorage.getItem('requests')) || []; }
+        function addRequest(req) {
+            let requests = getRequests();
+            let nextIds = JSON.parse(localStorage.getItem('nextIds'));
+            req.id = nextIds.requestId++;
+            req.status = 'pending';
+            req.createdAt = new Date().toISOString();
+            requests.push(req);
+            localStorage.setItem('requests', JSON.stringify(requests));
+            localStorage.setItem('nextIds', JSON.stringify(nextIds));
+            addLog(`Yêu cầu từ ${req.requestedBy} về môn ID ${req.subjectId}`, req.requestedBy);
+        }
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+        // ==================== RENDER THEO ROLE ====================
+        const user = JSON.parse(sessionStorage.getItem('loggedUser'));
+        if (!user) window.location.href = 'login.html';
+
+        // Hiển thị thông tin user
+        document.getElementById('userFullname').innerHTML = `<i class="fas fa-user-circle mr-1"></i> ${escapeHtml(user.fullName)}`;
+        const roleMap = { 
+            training: { text:'🏫 Phòng đào tạo', bg:'#eff6ff', color:'#2563eb' }, 
+            lecturer: { text:'👩‍🏫 Giảng viên', bg:'#ecfdf5', color:'#059669' }, 
+            faculty: { text:'📚 Khoa', bg:'#faf5ff', color:'#7c3aed' }, 
+            admin: { text:'⚙️ Quản trị', bg:'#fff7ed', color:'#d97706' } 
+        };
+        const r = roleMap[user.role] || { text:user.role, bg:'#f1f5f9', color:'#475569' };
+        const badge = document.getElementById('userRoleBadge');
+        badge.textContent = r.text; badge.style.backgroundColor = r.bg; badge.style.color = r.color;
+
+        // Gọi hàm render tương ứng
+        if (user.role === 'training') renderTrainingPanel(user);
+        else if (user.role === 'lecturer') renderLecturerPanel(user);
+        else if (user.role === 'faculty') renderFacultyPanel(user);
+        else if (user.role === 'admin') renderAdminPanel(user);
+
+        document.getElementById('logoutBtn').onclick = () => { sessionStorage.clear(); window.location.href = 'login.html'; };
+
+        // ==================== TRAINING PANEL ====================
+        function renderTrainingPanel(user) {
+            const container = document.getElementById('roleContent');
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl shadow-md p-5 card-hover">
+                        <h2 class="text-xl font-bold flex items-center gap-2 border-b pb-3 mb-4"><i class="fas fa-book-open text-blue-600"></i> Quản lý môn học</h2>
+                        <div class="mb-4 bg-gray-50 p-3 rounded-xl">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <input id="newSubName" placeholder="Tên môn" class="border rounded-lg p-2 text-sm">
+                                <select id="newSubFaculty" class="border rounded-lg p-2 text-sm">
+                                    <option>Công nghệ thông tin</option><option>Kinh tế</option><option>Khoa học sự sống</option>
+                                    <option>Điện - điện tử</option><option>Ngôn ngữ</option>
+                                </select>
+                                <input id="newSubCredits" type="number" value="3" class="border rounded-lg p-2 text-sm">
+                                <input id="newSubLecturer" placeholder="Giảng viên" class="border rounded-lg p-2 text-sm">
+                            </div>
+                            <button id="addSubjectBtn" class="mt-3 bg-blue-600 text-white px-4 py-1.5 rounded-xl text-sm"><i class="fas fa-plus"></i> Thêm môn</button>
+                        </div>
+                        <div class="scrollable-table">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-100"><tr><th>Tên môn</th><th>Khoa</th><th>TC</th><th>GV</th><th>Thao tác</th></tr></thead>
+                                <tbody id="subjectList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div class="bg-white rounded-2xl shadow-md p-5">
+                            <h2 class="text-xl font-bold">Quản lý tài khoản</h2>
+                            <div class="scrollable-table mt-3">
+                                <table class="min-w-full text-sm"><thead class="bg-gray-100"><tr><th>Username</th><th>Họ tên</th><th>Vai trò</th><th>Xóa</th></tr></thead><tbody id="accountList"></tbody></table>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-md p-5">
+                            <h2 class="text-xl font-bold">Lịch sử thao tác</h2>
+                            <ul id="historyList" class="mt-2 space-y-1 text-sm max-h-64 overflow-y-auto"></ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            renderSubjectTable();
+            renderAccountList();
+            renderHistory();
+            document.getElementById('addSubjectBtn').onclick = addSubject;
+        }
+
+        function renderSubjectTable() {
+            const subjects = getSubjects();
+            const tbody = document.getElementById('subjectList');
+            if(!tbody) return;
+            tbody.innerHTML = subjects.map(sub => `
+                <tr><td class="p-2">${escapeHtml(sub.name)}</td><td>${escapeHtml(sub.faculty)}</td><td class="text-center">${sub.credits}</td><td>${escapeHtml(sub.lecturer)}</td>
+                <td><button data-id="${sub.id}" class="editSubBtn text-blue-600 mr-2"><i class="fas fa-edit"></i></button><button data-id="${sub.id}" class="delSubBtn text-red-500"><i class="fas fa-trash"></i></button></td></tr>
+            `).join('');
+            document.querySelectorAll('.editSubBtn').forEach(btn => btn.onclick = () => editSubject(parseInt(btn.dataset.id)));
+            document.querySelectorAll('.delSubBtn').forEach(btn => btn.onclick = () => deleteSubject(parseInt(btn.dataset.id)));
+        }
+        function addSubject() {
+            const name = document.getElementById('newSubName').value.trim();
+            const faculty = document.getElementById('newSubFaculty').value;
+            const credits = parseInt(document.getElementById('newSubCredits').value);
+            const lecturer = document.getElementById('newSubLecturer').value.trim();
+            if(!name) { alert('Nhập tên môn'); return; }
+            let subjects = getSubjects();
+            let nextIds = JSON.parse(localStorage.getItem('nextIds'));
+            const newSub = { id: nextIds.subjectId++, code: Date.now().toString(), name, faculty, credits, lecturer, description: '' };
+            subjects.push(newSub);
+            saveSubjects(subjects);
+            localStorage.setItem('nextIds', JSON.stringify(nextIds));
+            addLog(`Thêm môn học: ${name}`, user.username);
+            renderSubjectTable();
+        }
+        function editSubject(id) {
+            let newName = prompt('Tên mới:');
+            if(newName) {
+                let subjects = getSubjects();
+                let sub = subjects.find(s => s.id === id);
+                if(sub) { sub.name = newName; saveSubjects(subjects); addLog(`Sửa môn ID ${id} thành ${newName}`, user.username); renderSubjectTable(); }
+            }
+        }
+        function deleteSubject(id) {
+            if(confirm('Xóa môn này?')) {
+                let subjects = getSubjects().filter(s => s.id !== id);
+                saveSubjects(subjects);
+                addLog(`Xóa môn học ID ${id}`, user.username);
+                renderSubjectTable();
+            }
+        }
+        function renderAccountList() {
+            const users = getUsers();
+            const tbody = document.getElementById('accountList');
+            if(!tbody) return;
+            tbody.innerHTML = users.map(u => `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(u.fullName)}</td><td>${escapeHtml(u.role)}</td><td><button data-id="${u.id}" class="delUserBtn text-red-500"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+            document.querySelectorAll('.delUserBtn').forEach(btn => btn.onclick = () => { if(confirm('Xóa tài khoản?')) { let users = getUsers().filter(u => u.id != btn.dataset.id); saveUsers(users); renderAccountList(); addLog(`Xóa tài khoản ID ${btn.dataset.id}`, user.username); } });
+        }
+        function renderHistory() {
+            const logs = getLogs();
+            const ul = document.getElementById('historyList');
+            if(ul) ul.innerHTML = logs.slice(0,10).map(l => `<li class="border-b py-1"><span class="text-gray-500 text-xs">${l.timestamp}</span> - <strong>${escapeHtml(l.user)}</strong>: ${escapeHtml(l.action)}</li>`).join('');
+        }
+
+        // ==================== LECTURER PANEL ====================
+        function renderLecturerPanel(user) {
+            const container = document.getElementById('roleContent');
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-md p-6">
+                    <h2 class="text-2xl font-bold flex gap-2 items-center"><i class="fas fa-chalkboard-teacher text-green-600"></i> Giao diện Giảng viên</h2>
+                    <p class="text-gray-500 mb-4">Tìm kiếm và xem chi tiết môn học</p>
+                    <div class="mb-5"><input type="text" id="searchInput" placeholder="🔍 Tìm kiếm môn học..." class="w-full md:w-96 border rounded-xl p-2.5"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div><h3 class="font-semibold text-lg mb-2">📖 Danh sách môn học</h3><div class="scrollable-table"><table class="min-w-full bg-gray-50 rounded-xl"><thead class="bg-gray-200"><tr><th>Tên môn học</th><th>Khoa</th><th>Tín chỉ</th></tr></thead><tbody id="lecturerSubjectList"></tbody></table></div></div>
+                        <div><h3 class="font-semibold text-lg mb-2">📌 Chi tiết môn học</h3><div id="subjectDetailCard" class="bg-gray-50 p-4 rounded-xl border min-h-[200px] flex items-center justify-center text-gray-400"><i class="fas fa-info-circle mr-2"></i> Nhấp vào một môn để xem chi tiết</div></div>
+                    </div>
+                </div>
+            `;
+            const subjects = getSubjects();
+            const searchInput = document.getElementById('searchInput');
+            const updateList = () => {
+                const term = searchInput.value.toLowerCase();
+                const filtered = subjects.filter(s => s.name.toLowerCase().includes(term) || s.code.toLowerCase().includes(term));
+                const tbody = document.getElementById('lecturerSubjectList');
+                tbody.innerHTML = filtered.map(s => `<tr class="border-b cursor-pointer hover:bg-blue-50 subject-row" data-id="${s.id}"><td class="p-2">${escapeHtml(s.name)}</td><td>${escapeHtml(s.faculty)}</td><td>${s.credits} tc</td></tr>`).join('');
+                attachEvents();
+            };
+            function attachEvents() {
+                document.querySelectorAll('.subject-row').forEach(row => {
+                    row.onclick = () => {
+                        const id = parseInt(row.dataset.id);
+                        const sub = subjects.find(s => s.id === id);
+                        if(sub) {
+                            document.getElementById('subjectDetailCard').innerHTML = `<div class="space-y-2"><div class="font-bold text-lg">${escapeHtml(sub.name)}</div><div class="grid grid-cols-2 gap-2 text-sm"><span>Khoa:</span><span>${escapeHtml(sub.faculty)}</span><span>Số tín chỉ:</span><span>${sub.credits}</span><span>Giảng viên:</span><span>${escapeHtml(sub.lecturer)}</span></div><div class="mt-3 text-xs text-blue-600">Mô tả: ${escapeHtml(sub.description || 'Chưa có mô tả')}</div></div>`;
+                        }
+                    };
+                });
+            }
+            searchInput.addEventListener('input', updateList);
+            updateList();
+        }
+
+        // ==================== FACULTY PANEL ====================
+        function renderFacultyPanel(user) {
+            const facultyName = user.facultyName || '';
+            const container = document.getElementById('roleContent');
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-md p-6">
+                    <h2 class="text-xl font-bold flex gap-2"><i class="fas fa-landmark text-amber-600"></i> Khoa - Xem môn học & gửi yêu cầu</h2>
+                    <div class="flex flex-wrap gap-4 my-4 items-end">
+                        <div><label class="block text-sm font-medium">Khoa</label><select id="facultySelect" class="border rounded-xl p-2 w-64"><option>${facultyName}</option></select></div>
+                        <button id="refreshBtn" class="bg-amber-100 text-amber-800 px-4 py-2 rounded-xl"><i class="fas fa-sync-alt"></i> Lọc</button>
+                    </div>
+                    <div id="subjectsByFacultyContainer" class="mb-6 bg-gray-50 p-4 rounded-xl"></div>
+                    <div class="border-t pt-4 mt-2"><h3 class="font-semibold mb-2">✉️ Gửi yêu cầu cập nhật môn học</h3>
+                        <select id="requestSubjectSelect" class="border rounded-xl p-2 w-full mb-2"><option>Chọn môn học</option></select>
+                        <textarea id="requestMessage" rows="2" class="border rounded-xl p-2 w-full" placeholder="Mô tả yêu cầu cập nhật..."></textarea>
+                        <button id="sendRequestBtn" class="bg-blue-600 text-white px-5 py-2 rounded-xl w-fit"><i class="fas fa-paper-plane"></i> Gửi yêu cầu</button>
+                    </div>
+                </div>
+            `;
+            const subjects = getSubjects();
+            function loadSubjectsByFaculty() {
+                const filtered = subjects.filter(s => s.faculty === facultyName);
+                document.getElementById('subjectsByFacultyContainer').innerHTML = `<h3 class="font-medium mb-2">📚 Danh sách môn học khoa ${facultyName}</h3><table class="w-full text-sm"><thead class="bg-gray-200"><tr><th>Tên môn</th><th>TC</th><th>GV</th></tr></thead><tbody>${filtered.map(s => `<tr><td>${escapeHtml(s.name)}</td><td>${s.credits}</td><td>${escapeHtml(s.lecturer)}</td></tr>`).join('')}</tbody></table>`;
+                const select = document.getElementById('requestSubjectSelect');
+                select.innerHTML = `<option value="">-- Chọn môn học --</option>` + filtered.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+            }
+            loadSubjectsByFaculty();
+            document.getElementById('sendRequestBtn').onclick = () => {
+                const subId = document.getElementById('requestSubjectSelect').value;
+                const msg = document.getElementById('requestMessage').value.trim();
+                if(!subId) { alert('Chọn môn học'); return; }
+                addRequest({ subjectId: parseInt(subId), reason: msg, requestedBy: user.username, faculty: facultyName });
+                alert('Yêu cầu đã gửi đến Phòng đào tạo');
+                document.getElementById('requestMessage').value = '';
+            };
+        }
+
+        // ==================== ADMIN PANEL ====================
+        function renderAdminPanel(user) {
+            const container = document.getElementById('roleContent');
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-md p-6">
+                    <h2 class="text-2xl font-bold flex gap-2"><i class="fas fa-crown text-purple-700"></i> Quản trị & Phân quyền hệ thống</h2>
+                    <p class="text-sm text-gray-500 mb-4">Quản lý tài khoản, phân quyền động</p>
+                    <div class="mb-4 flex gap-2 flex-wrap"><input id="newAdminUser" placeholder="Tên đăng nhập" class="border rounded-lg p-2"><input id="newAdminFullname" placeholder="Họ tên" class="border rounded-lg p-2"><select id="newAdminRole"><option>lecturer</option><option>faculty</option><option>training</option><option>admin</option></select><button id="addAdminUserBtn" class="bg-purple-600 text-white px-3 rounded-xl">➕ Thêm</button></div>
+                    <div class="scrollable-table"><table class="min-w-full"><thead class="bg-gray-100"><tr><th>Username</th><th>Họ tên</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
+                    <div class="mt-5 p-3 bg-gray-50 rounded-xl"><i class="fas fa-shield-alt text-green-600"></i> <strong>Quyền admin:</strong> Có thể cấp/sửa/xóa bất kỳ tài khoản.</div>
+                </div>
+            `;
+            function renderUsers() {
+                let users = getUsers();
+                const tbody = document.getElementById('adminUserList');
+                tbody.innerHTML = users.map(u => `
+                    <tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(u.fullName)}</td>
+                    <td><select data-id="${u.id}" class="adminRoleSelect border rounded p-1">${['lecturer','faculty','training','admin'].map(r => `<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select></td>
+                    <td><button data-id="${u.id}" class="adminDelUserBtn text-red-500"><i class="fas fa-trash"></i> Xóa</button></td></tr>
+                `).join('');
+                document.querySelectorAll('.adminRoleSelect').forEach(select => {
+                    select.onchange = () => {
+                        const id = parseInt(select.dataset.id);
+                        const newRole = select.value;
+                        let users = getUsers();
+                        let userIdx = users.findIndex(u => u.id === id);
+                        if(userIdx !== -1) { users[userIdx].role = newRole; saveUsers(users); addLog(`Admin đổi role user ID ${id} thành ${newRole}`, user.username); renderUsers(); }
+                    };
+                });
+                document.querySelectorAll('.adminDelUserBtn').forEach(btn => {
+                    btn.onclick = () => {
+                        const id = parseInt(btn.dataset.id);
+                        if(confirm('Xóa tài khoản?')) {
+                            let users = getUsers().filter(u => u.id !== id);
+                            saveUsers(users);
+                            addLog(`Admin xóa tài khoản ID ${id}`, user.username);
+                            renderUsers();
+                        }
+                    };
+                });
+            }
+            renderUsers();
+            document.getElementById('addAdminUserBtn').onclick = () => {
+                const username = document.getElementById('newAdminUser').value.trim();
+                const fullName = document.getElementById('newAdminFullname').value.trim();
+                const role = document.getElementById('newAdminRole').value;
+                if(!username || !fullName) { alert('Nhập đủ username và họ tên'); return; }
+                let users = getUsers();
+                if(users.find(u => u.username === username)) { alert('Username đã tồn tại'); return; }
+                let nextIds = JSON.parse(localStorage.getItem('nextIds'));
+                const newUser = { id: nextIds.userId++, username, password: '123', fullName, role };
+                users.push(newUser);
+                saveUsers(users);
+                localStorage.setItem('nextIds', JSON.stringify(nextIds));
+                addLog(`Admin thêm tài khoản ${username} (${role})`, user.username);
+                renderUsers();
+                document.getElementById('newAdminUser').value = '';
+                document.getElementById('newAdminFullname').value = '';
+            };
+        }
+    </script>
+</body>
+</html>
