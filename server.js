@@ -6,9 +6,23 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); // Phục vụ file tĩnh từ thư mục gốc
+
+// Phục vụ file tĩnh từ thư mục gốc
+app.use(express.static(__dirname, {
+    setHeaders: (res, filepath) => {
+        // Đảm bảo các file được serve với đúng content-type
+        if (filepath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        } else if (filepath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        } else if (filepath.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html');
+        }
+    }
+}));
 
 // Đường dẫn file dữ liệu
 const ACCOUNTS_FILE = path.join(__dirname, 'taikhoan.txt');
@@ -19,12 +33,22 @@ const REQUESTS_FILE = path.join(__dirname, 'requests.txt');
 // Hàm đọc file an toàn (nếu lỗi thì trả về mặc định)
 function readFileJSON(file, defaultVal) {
     try {
+        if (!fs.existsSync(file)) {
+            console.log(`File ${file} không tồn tại, tạo mới với dữ liệu mặc định`);
+            writeFileJSON(file, defaultVal);
+            return defaultVal;
+        }
         const data = fs.readFileSync(file, 'utf8');
+        if (!data || data.trim() === '') {
+            console.log(`File ${file} rỗng, sử dụng dữ liệu mặc định`);
+            writeFileJSON(file, defaultVal);
+            return defaultVal;
+        }
         return JSON.parse(data);
     } catch (err) {
-        // Nếu file không tồn tại hoặc lỗi, ghi file mới với defaultVal
+        console.error(`Lỗi đọc file ${file}:`, err.message);
         try {
-            fs.writeFileSync(file, JSON.stringify(defaultVal, null, 2), 'utf8');
+            writeFileJSON(file, defaultVal);
         } catch (writeErr) {
             console.error(`Không thể ghi file ${file}:`, writeErr.message);
         }
@@ -37,7 +61,6 @@ function writeFileJSON(file, data) {
         fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
     } catch (err) {
         console.error(`Lỗi ghi file ${file}:`, err.message);
-        // Không throw lỗi để server không crash
     }
 }
 
@@ -55,11 +78,13 @@ function saveRequests() { writeFileJSON(REQUESTS_FILE, requests); }
 function addLog(action, username) {
     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
     logs.unshift({ id: Date.now(), timestamp, action, user: username });
+    if (logs.length > 100) logs = logs.slice(0, 100); // Giữ tối đa 100 logs
     saveLogs();
 }
 
 // Tạo dữ liệu mẫu nếu chưa có
-if (accounts.length === 0) {
+if (!accounts || accounts.length === 0) {
+    console.log('Khởi tạo dữ liệu tài khoản mẫu...');
     accounts = [
         { id: 1, username: 'admin', password: 'Admin123@', fullName: 'Quản trị hệ thống', role: 'admin' },
         { id: 2, username: 'phongdaotao', password: '123', fullName: 'Phòng Quản lý Sinh viên', role: 'training' },
@@ -71,7 +96,8 @@ if (accounts.length === 0) {
     ];
     saveAccounts();
 }
-if (subjects.length === 0) {
+if (!subjects || subjects.length === 0) {
+    console.log('Khởi tạo dữ liệu môn học mẫu...');
     subjects = [
         { id: 1, code: 'CS101', name: 'Lập trình Web nâng cao', faculty: 'Công nghệ thông tin', credits: 3, lecturer: 'TS. Nguyễn Văn A', status: 'active' },
         { id: 2, code: 'EE201', name: 'Mạch điện tử', faculty: 'Điện - Điện tử', credits: 4, lecturer: 'ThS. Trần Văn B', status: 'active' },
@@ -80,20 +106,32 @@ if (subjects.length === 0) {
     ];
     saveSubjects();
 }
-if (logs.length === 0) addLog('Khởi tạo hệ thống', 'System');
+if (!logs || logs.length === 0) {
+    console.log('Khởi tạo logs...');
+    addLog('Khởi tạo hệ thống', 'System');
+}
 
-// ---------- API (giữ nguyên như cũ) ----------
+// ---------- API ENDPOINTS ----------
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Login API
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const user = accounts.find(acc => acc.username === username && acc.password === password);
     if (user) {
         const { password, ...safeUser } = user;
+        addLog(`Đăng nhập: ${username}`, username);
         res.json({ success: true, user: safeUser });
     } else {
         res.status(401).json({ success: false, message: 'Sai tên đăng nhập hoặc mật khẩu' });
     }
 });
 
+// Register API
 app.post('/api/register', (req, res) => {
     const { username, password, fullName, role, facultyName, department, lecturerCode, birthDate } = req.body;
     if (accounts.find(acc => acc.username === username)) {
@@ -113,7 +151,9 @@ app.post('/api/register', (req, res) => {
     res.json({ success: true });
 });
 
+// Subjects APIs
 app.get('/api/subjects', (req, res) => res.json(subjects));
+
 app.post('/api/subjects', (req, res) => {
     const newId = subjects.length > 0 ? Math.max(...subjects.map(s => s.id)) + 1 : 1;
     const newSub = { id: newId, ...req.body, status: 'active' };
@@ -122,6 +162,7 @@ app.post('/api/subjects', (req, res) => {
     addLog(`Thêm môn học: ${newSub.name}`, req.body.username || 'System');
     res.json({ success: true, subject: newSub });
 });
+
 app.put('/api/subjects/:id', (req, res) => {
     const id = parseInt(req.params.id);
     const index = subjects.findIndex(s => s.id === id);
@@ -130,8 +171,11 @@ app.put('/api/subjects/:id', (req, res) => {
         saveSubjects();
         addLog(`Cập nhật môn học: ${subjects[index].name}`, req.body.username || 'System');
         res.json({ success: true });
-    } else res.status(404).json({ success: false });
+    } else {
+        res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
+    }
 });
+
 app.delete('/api/subjects/:id', (req, res) => {
     const id = parseInt(req.params.id);
     const sub = subjects.find(s => s.id === id);
@@ -141,13 +185,18 @@ app.delete('/api/subjects/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// Users APIs
 app.get('/api/users', (req, res) => {
-    const safeUsers = accounts.map(({ id, username, fullName, role, facultyName, department }) => ({ id, username, fullName, role, facultyName, department }));
+    const safeUsers = accounts.map(({ id, username, fullName, role, facultyName, department }) => 
+        ({ id, username, fullName, role, facultyName, department }));
     res.json(safeUsers);
 });
+
 app.post('/api/users', (req, res) => {
     const { username, password, fullName, role, facultyName, department } = req.body;
-    if (accounts.find(acc => acc.username === username)) return res.status(400).json({ success: false, message: 'Username tồn tại' });
+    if (accounts.find(acc => acc.username === username)) {
+        return res.status(400).json({ success: false, message: 'Username đã tồn tại' });
+    }
     const newId = accounts.length > 0 ? Math.max(...accounts.map(a => a.id)) + 1 : 1;
     const newUser = { id: newId, username, password: password || '123', fullName, role };
     if (role === 'faculty') newUser.facultyName = facultyName;
@@ -157,6 +206,7 @@ app.post('/api/users', (req, res) => {
     addLog(`Thêm tài khoản: ${username} (${role})`, req.body.adminUser || 'Admin');
     res.json({ success: true });
 });
+
 app.put('/api/users/:id', (req, res) => {
     const id = parseInt(req.params.id);
     const index = accounts.findIndex(u => u.id === id);
@@ -165,8 +215,11 @@ app.put('/api/users/:id', (req, res) => {
         saveAccounts();
         addLog(`Cập nhật tài khoản: ${accounts[index].username}`, req.body.adminUser || 'Admin');
         res.json({ success: true });
-    } else res.status(404).json({ success: false });
+    } else {
+        res.status(404).json({ success: false, message: 'Không tìm thấy user' });
+    }
 });
+
 app.delete('/api/users/:id', (req, res) => {
     const id = parseInt(req.params.id);
     const user = accounts.find(u => u.id === id);
@@ -176,8 +229,10 @@ app.delete('/api/users/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// Logs & Requests APIs
 app.get('/api/logs', (req, res) => res.json(logs.slice(0, 50)));
 app.get('/api/requests', (req, res) => res.json(requests));
+
 app.post('/api/requests', (req, res) => {
     const newId = requests.length > 0 ? Math.max(...requests.map(r => r.id)) + 1 : 1;
     const newReq = { id: newId, ...req.body, status: 'pending', createdAt: new Date().toISOString() };
@@ -186,6 +241,7 @@ app.post('/api/requests', (req, res) => {
     addLog(`Gửi yêu cầu cập nhật môn ID ${req.body.subjectId}`, req.body.requestedBy);
     res.json({ success: true });
 });
+
 app.put('/api/requests/:id', (req, res) => {
     const id = parseInt(req.params.id);
     const index = requests.findIndex(r => r.id === id);
@@ -194,13 +250,40 @@ app.put('/api/requests/:id', (req, res) => {
         saveRequests();
         addLog(`Xử lý yêu cầu ID ${id}: ${req.body.status}`, req.body.adminUser || 'Admin');
         res.json({ success: true });
-    } else res.status(404).json({ success: false });
+    } else {
+        res.status(404).json({ success: false, message: 'Không tìm thấy request' });
+    }
+});
+
+// Serve dashboard.html explicitly
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dashboard-page.html'));
 });
 
 // Fallback: nếu không tìm thấy route, gửi file login.html
 app.get('*', (req, res) => {
+    // Nếu request là cho file tĩnh và không tồn tại, trả về 404
+    if (req.path.includes('.')) {
+        return res.status(404).send('File not found');
+    }
+    // Nếu không, redirect về trang login
     res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 // Khởi động server
-app.listen(PORT, () => console.log(`Server đang chạy tại port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Server đang chạy tại port ${PORT}`);
+    console.log(`📊 Số tài khoản: ${accounts.length}`);
+    console.log(`📚 Số môn học: ${subjects.length}`);
+    console.log(`📝 Số logs: ${logs.length}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    saveAccounts();
+    saveSubjects();
+    saveLogs();
+    saveRequests();
+    process.exit(0);
+});
