@@ -30,9 +30,10 @@
             transform: translateY(-4px);
             box-shadow: 0 25px 40px -12px rgba(0,0,0,0.25);
         }
-        input:focus, select:focus {
+        input:focus {
             box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
             border-color: #3b82f6;
+            outline: none;
         }
         .btn-primary {
             background: linear-gradient(to right, #2563eb, #1d4ed8);
@@ -56,12 +57,12 @@
         </div>
         <form id="loginForm">
             <div class="mb-4">
-                <input type="text" id="username" placeholder="Tên đăng nhập" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none transition" required>
+                <input type="text" id="username" placeholder="Tên đăng nhập" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none transition" required autocomplete="username">
             </div>
             <div class="mb-4">
-                <input type="password" id="password" placeholder="Mật khẩu" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none transition" required>
+                <input type="password" id="password" placeholder="Mật khẩu" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none transition" required autocomplete="current-password">
             </div>
-            <div id="errorMsg" class="text-red-500 text-sm mb-3 hidden"></div>
+            <div id="errorMsg" class="text-red-500 text-sm mb-3 hidden bg-red-50 p-2 rounded-lg"></div>
             <button type="submit" class="btn-primary w-full text-white py-3 rounded-xl font-semibold shadow-md">Đăng nhập</button>
         </form>
         <div class="text-center mt-5">
@@ -73,34 +74,72 @@
     </div>
 
     <script>
-        // Khởi tạo dữ liệu mặc định
-        if (!localStorage.getItem('users')) {
-            const defaultUsers = [
-                { id: 1, username: 'admin', password: '123', fullName: 'Quản trị viên', role: 'admin' },
-                { id: 2, username: 'training', password: '123', fullName: 'Phòng đào tạo', role: 'training' },
-                { id: 3, username: 'gv1', password: '123', fullName: 'Nguyễn Văn A', role: 'lecturer' },
-                { id: 4, username: 'khoa_cntt', password: '123', fullName: 'Khoa CNTT', role: 'faculty', facultyName: 'Công nghệ thông tin' }
-            ];
-            localStorage.setItem('users', JSON.stringify(defaultUsers));
-        }
-        if (!localStorage.getItem('nextIds')) {
-            localStorage.setItem('nextIds', JSON.stringify({ userId: 5, subjectId: 4, requestId: 1 }));
+        // Xác định API base URL (tự động lấy origin hiện tại, ví dụ http://localhost:3000)
+        const API_BASE = window.location.origin;
+
+        // Hàm hiển thị lỗi
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            // Ẩn sau 5 giây
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
         }
 
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
+        // Kiểm tra kết nối server trước khi đăng nhập (tuỳ chọn, giúp báo lỗi rõ hơn)
+        async function checkServerConnection() {
+            try {
+                // Gọi một API nhẹ (ví dụ /api/subjects) để kiểm tra server có phản hồi không
+                const res = await fetch(`${API_BASE}/api/subjects`, { method: 'HEAD' });
+                return res.ok;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('errorMsg');
-            const users = JSON.parse(localStorage.getItem('users')) || [];
-            const user = users.find(u => u.username === username && u.password === password);
-            if (user) {
-                const { password, ...safeUser } = user;
-                sessionStorage.setItem('loggedUser', JSON.stringify(safeUser));
-                window.location.href = 'dashboard.html';
-            } else {
-                errorDiv.textContent = 'Sai tên đăng nhập hoặc mật khẩu';
-                errorDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+
+            if (!username || !password) {
+                showError('Vui lòng nhập tên đăng nhập và mật khẩu');
+                return;
+            }
+
+            // Kiểm tra kết nối server trước
+            const isConnected = await checkServerConnection();
+            if (!isConnected) {
+                showError('❌ Không thể kết nối đến server. Hãy chắc chắn rằng bạn đã chạy "node server.js" và truy cập qua http://localhost:3000 (không phải file://)');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Lưu thông tin user vào sessionStorage (không lưu mật khẩu)
+                    sessionStorage.setItem('loggedUser', JSON.stringify(data.user));
+                    // Chuyển hướng đến dashboard
+                    window.location.href = 'dashboard.html';
+                } else {
+                    showError(data.message || 'Sai tên đăng nhập hoặc mật khẩu');
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+            } catch (err) {
+                console.error('Lỗi đăng nhập:', err);
+                showError('Lỗi kết nối đến server: ' + err.message);
             }
         });
     </script>
